@@ -1,0 +1,46 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ambientes Virtuais
+.venv/
+venv/
+env/
+ENV/
+
+# Configurações de IDE (VS Code, PyCharm)
+.vscode/
+.idea/
+
+# Variáveis de ambiente (Contém senhas e chaves da API)
+.env
+
+# Banco de dados local (SQLite, etc)
+*.db
+*.sqlite3
+
+# Testes e Cobertura
+.pytest_cache/
+nosetests.xml
+coverage.xml
+htmlcov/
+.tower/
+
+# Distribuição / Pacotes
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+
+# Docker (Opcional - se você não quiser buildar o contexto)
+.dockerignore
