@@ -3,8 +3,6 @@ from sqlalchemy.orm import Session
 import secrets
 import models, schemas, database
 
-models.Base.metadata.create_all(bind=database.engine)
-
 app = FastAPI()
 
 
