@@ -6,13 +6,12 @@ O projeto foi construído seguindo princípios de **Clean Code**, **Arquitetura 
 
 ## 🛠 Tecnologias Utilizadas
 
-* **Linguagem:** Python 3.11+
 * **Framework:** FastAPI
 * **Servidor (Dev):** Uvicorn
 * **Servidor (Prod):** Gunicorn gerenciando Uvicorn workers
 * **Banco de Dados:** SQLite (Ambiente Local) / Suporte a PostgreSQL (Produção)
 * **ORM:** SQLAlchemy
-* **Testes:** Pytest & TestClient
+* **Testes:** Pytest
 * **Infraestrutura:** Docker & Docker Compose
 
 ---
@@ -55,29 +54,7 @@ pip install -r requirements.txt
 
 ```
 
-### 3. Configuração do Banco de Dados (SQLite)
-
-O projeto utiliza SQLite localmente. Siga a ordem abaixo para inicializar a estrutura:
-
-1. **Inicialize a API uma vez** (Isso criará o arquivo `test.db` vazio):
-```bash
-uvicorn main:app --reload
-
-```
-
-
-*Aguarde aparecer "Application startup complete" e pressione `Ctrl+C` para parar.*
-
-2. **Popule o banco com dados iniciais** (Roles: Admin e Dev):
-```bash
-python init_db_sql.py
-
-```
-
-
-*Você verá a mensagem: "Sucesso! Roles inseridas via SQL."*
-
-### 4. Rodar a Aplicação
+### 3. Rodar a Aplicação
 
 Inicie o servidor em modo de desenvolvimento (com auto-reload):
 
@@ -88,163 +65,328 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 Acesse: `http://localhost:8000`
 
----
+### 4. Endpoints Principais
 
-## Como Executar Localmente (Com Docker)
-
-Se preferir rodar a aplicação isolada em container.
-
-### 1. Build da Imagem
-
-```bash
-docker build -t backend-challenge-api .
-
-```
-
-### 2. Rodar o Container
-
-```bash
-docker run -p 8000:8000 backend-challenge-api
-
-```
-
-*Nota: Ao rodar via Docker, o banco de dados interno do container será recriado a cada reinício, pois o docker não é persiste nos dados*
-
----
-
-## ✅ Executando Testes
-
-O projeto possui testes automatizados de infraestrutura e regras de negócio utilizando `pytest` com banco de dados em memória (isolado).
-
-```bash
-pytest 
-
-```
-
-<img src="images/image copy 2.png" alt="Pytest" width="800"/>
-
-## Consumindo a API (Postman/Insomnia)
-
-é posisvel importar o arquivo **`docs/openapi.yaml`** no Postman ou Insomnia para facilitar os testes das rotas.
-
-<img src="images/image.png" alt="postman" width="800"/>
-
-<img src="images/image copy.png" alt="postman" width="800"/>
-
----
-
-## 📖 Documentação da API
-
-Você pode visualizar a especificação da API de duas formas:
-
-1. **Swagger UI (Online):**
-Com a API rodando, acesse: `http://localhost:8000/docs`
-
-<img src="images/image copy 5.png" alt="Swagger UI" width="800"/>
-
-2. **Documentação Offline (Para Postman/Insomnia):**
-O arquivo de especificação OpenAPI (Swagger) está disponível no repositório em:
-📂 **`docs/openapi.yaml`**
-
-* **Como usar:** Importe este arquivo diretamente no Postman ou no [Swagger Editor](https://editor.swagger.io/) para visualizar os contratos, schemas e testar as rotas sem precisar rodar o código Python.
-
+Consumir os endpoint para criar usuários e retornar roles via postman ou insomnia
 
 
 ---
 
-## ☁️ Guia de Deploy em Produção
+## Deploy em Produção
 
-Para um ambiente produtivo robusto, recomenda-se abandonar o servidor de desenvolvimento e utilizar uma arquitetura com **Gunicorn**, **Nginx** e **PostgreSQL**.
+Perfeito! Agora vejo sua estrutura. Você tem **todos os arquivos Python na raiz** do projeto e já criou alguns arquivos Docker! Vou adaptar tudo para sua estrutura específica.
 
-### Estratégia de Arquitetura
-
-1. **Gunicorn:** Gerenciador de processos (Process Manager) que controla múltiplos workers do Uvicorn para aproveitar o paralelismo da CPU.
-2. **Nginx:** Proxy Reverso para lidar com SSL/TLS, cabeçalhos de segurança e compressão Gzip.
-3. **PostgreSQL:** Banco de dados relacional robusto (substituindo o SQLite).
-
-### 1. Exemplo de Dockerfile de Produção
-
-O `Dockerfile` na raiz já está preparado, mas para produção recomenda-se o comando de entrada otimizado:
+### **1. Dockerfile** 
 
 ```dockerfile
-# ... (steps de build) ...
-# Comando de Produção: Gunicorn + Uvicorn Workers
-CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "main:app"]
+FROM python:3.11-slim
 
+WORKDIR /code
+
+# Copia requirements primeiro (cache do Docker)
+COPY ./requirements.txt /code/requirements.txt
+
+# Instala dependências
+RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+
+# Copia TODOS os arquivos Python da raiz
+COPY ./main.py /code/main.py
+COPY ./database.py /code/database.py
+COPY ./models.py /code/models.py
+COPY ./schemas.py /code/schemas.py
+
+# Se tiver outras pastas necessárias, copie também
+# COPY ./query /code/query
+# COPY ./database /code/database
+
+EXPOSE 8000
+
+# Como seu main.py está na raiz, use "main:app"
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-*Ajuste `-w 4` (workers) conforme o número de núcleos da CPU (Fórmula sugerida: 2 x Núcleos + 1).*
+***
 
-### 2. Exemplo de Docker Compose (Produção)
-
-Crie um arquivo `docker-compose.prod.yml` no servidor:
+### **2. docker-compose.yml**
 
 ```yaml
+version: '3.8'
+
 services:
-  api:
-    build: .
-    container_name: api_prod
-    restart: always
-    environment:
-      - DATABASE_URL=postgresql+psycopg2://user:pass@db:5432/dbname
-    expose:
-      - "8000"
-    command: gunicorn -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 main:app
-    depends_on:
-      - db
-
-  nginx:
-    image: nginx:alpine
-    container_name: nginx_proxy
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      - api
-
+  # Serviço PostgreSQL
   db:
     image: postgres:15
+    container_name: fastapi_db
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
-      POSTGRES_DB: dbname
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fastapi_db
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fastapi-network
+
+  # Serviço FastAPI
+  api:
+    build: .
+    container_name: fastapi_app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/fastapi_db
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fastapi-network
 
 volumes:
-  pgdata:
+  postgres_data:
 
+networks:
+  fastapi-network:
+    driver: bridge
 ```
 
-### 3. Configuração do Nginx (`nginx.conf`)
+***
 
-```nginx
-server {
-    listen 80;
-    server_name seu-dominio.com;
-
-    location / {
-        proxy_pass http://api:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
+### **3. .dockerignore** 
 
 ```
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+.git
+.gitignore
+.pytest_cache
+.coverage
+*.log
+.env
+.env.local
+*.db
+*.sqlite
+*.sqlite3
+test.db
+tests/
+test/
+docs/
+images/
+.DS_Store
+```
 
-### 4. Executando o Deploy
 
-No servidor de produção:
+***
+
+### **4. Verificar requirements.txt**
+
+Seu `requirements.txt` deve ter:
+
+```txt
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
+python-dotenv>=1.0.0
+```
+
+Se não tiver `psycopg2-binary`, instale:
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d --build
-
+pip install psycopg2-binary
+pip freeze > requirements.txt
 ```
 
+***
+
+
+### **Passo 5: Build e Subir os Containers**
+
+```bash
+# Build das imagens
+docker-compose build
+
+# Subir os containers
+docker-compose up -d
 ```
 
+**O que vai acontecer:**
+- Docker vai baixar PostgreSQL 15
+- Vai construir sua API com os arquivos da raiz
+- Vai criar 2 containers: `fastapi_db` e `fastapi_app`
+
+***
+
+### **Passo 6: Verificar se Está Rodando**
+
+```bash
+# Ver containers rodando
+docker-compose ps
+
+# Ver logs
+docker-compose logs -f
 ```
+
+**Você deve ver:**
+```
+NAME            STATUS    PORTS
+fastapi_db      running   0.0.0.0:5432->5432/tcp
+fastapi_app     running   0.0.0.0:8000->8000/tcp
+```
+
+***
+
+## Passo  7: Deploy na AWS EC2 (Produção)
+
+### ** 7.1: Criar Instância EC2 na AWS**
+
+***
+
+### ** 7.2: Conectar na EC2 via SSH**
+
+No seu terminal local: [dev](https://dev.to/goodluck_ekeoma_2c98866d0/containerizing-and-deploying-a-simple-fastapi-application-to-aws-ec2-pa2)
+
+```bash
+# Dar permissão na chave
+chmod 400 fastapi-key.pem
+
+# Conectar na EC2 (substitua o IP)
+ssh -i fastapi-key.pem ubuntu@SEU-IP-PUBLICO
+
+# Exemplo:
+# ssh -i fastapi-key.pem ubuntu@54.123.45.67
+```
+
+***
+
+### ** 7.3: Instalar Docker e Docker Compose na EC2**
+
+Dentro da EC2, execute estes comandos: [youtube](https://www.youtube.com/watch?v=9AA0gKmcxNM)
+
+```bash
+# Atualizar pacotes
+sudo apt update
+
+# Instalar Docker
+sudo apt install -y docker.io
+
+# Habilitar Docker para iniciar com o sistema
+sudo systemctl enable --now docker
+
+# Adicionar seu usuário ao grupo docker (para não precisar de sudo)
+sudo usermod -aG docker $USER
+
+# Instalar Docker Compose
+sudo apt install -y docker-compose
+
+# Verificar instalação
+docker --version
+docker-compose --version
+
+# IMPORTANTE: Fazer logout e login novamente para aplicar permissões
+exit
+```
+
+Conecte novamente:
+```bash
+ssh -i fastapi-key.pem ubuntu@SEU-IP-PUBLICO
+```
+
+***
+
+### ** 7.4: Enviar Código para EC2**
+
+**Via GitHub** [dev](https://dev.to/theinfosecguy/how-to-deploy-a-fastapi-application-using-docker-on-aws-4m61)
+
+Se seu código está no GitHub:
+
+```bash
+# Na EC2, clonar seu repositório
+git clone https://github.com/dgusfr/backend-challenge.git
+cd backend-challenge
+```
+
+***
+
+### ** 7.5: Configurar Variáveis de Ambiente para Produção**
+
+Na EC2, crie/edite o arquivo `.env`: [dev](https://dev.to/shaikhalamin/how-to-deploy-fastapi-app-with-postgresql-database-in-aws-ec2-2hn5)
+
+```bash
+# Na EC2
+nano .env
+```
+
+Cole este conteúdo:
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres_prod_2026@db:5432/fastapi_db
+SECRET_KEY=sua-chave-super-secreta-aqui-mude-isso
+DEBUG=False
+```
+
+**Pressione:** `Ctrl + O` → Enter → `Ctrl + X`
+
+***
+
+### **7.6: Subir os Containers em Produção**
+
+```bash
+# Build das imagens
+docker-compose build
+
+# Subir em modo detached (background)
+docker-compose up -d
+
+# Ver se está rodando
+docker-compose ps
+
+# Ver logs
+docker-compose logs -f
+```
+
+***
+
+### **7.7: Criar Tabelas no Banco**
+
+Na EC2: [dev](https://dev.to/goodluck_ekeoma_2c98866d0/containerizing-and-deploying-a-simple-fastapi-application-to-aws-ec2-pa2)
+
+```bash
+docker-compose exec api python -c "from database import engine; from models import Base; Base.metadata.create_all(bind=engine)"
+```
+
+***
+
+### **7.8: Testar a API em Produção**
+
+No seu navegador, acesse:
+
+```
+http://SEU-IP-PUBLICO:8000/docs
+```
+
+Exemplo:
+```
+http://54.123.45.67:8000/docs
+```
+
+Você deve ver o Swagger da sua API rodando na nuvem! [dev](https://dev.to/theinfosecguy/how-to-deploy-a-fastapi-application-using-docker-on-aws-4m61)
+
+**Teste via curl:**
+```bash
+curl http://SEU-IP-PUBLICO:8000/docs
+```
+
+***

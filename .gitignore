@@ -44,3 +44,12 @@ wheels/
 
 # Docker (Opcional - se você não quiser buildar o contexto)
 .dockerignore
+
+# Environment variables
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
