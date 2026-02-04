@@ -20,10 +20,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
     final_password = user.password or secrets.token_urlsafe(8)
 
     db_user = models.User(
-        name=user.name,
-        email=user.email,
-        password=final_password,  # Num cenário real, aqui usaríamos hash (ex: bcrypt)
-        role_id=user.role_id,
+        name=user.name, email=user.email, password=final_password, role_id=user.role_id
     )
 
     db.add(db_user)
