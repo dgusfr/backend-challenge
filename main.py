@@ -17,13 +17,17 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
 
     final_password = user.password or secrets.token_urlsafe(8)
 
+    # Implementar senha hash com bycrypt para criptografia da senha
     db_user = models.User(
         name=user.name, email=user.email, password=final_password, role_id=user.role_id
     )
-
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
+    try:
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error creating user: {e}")
     return db_user
 
 
